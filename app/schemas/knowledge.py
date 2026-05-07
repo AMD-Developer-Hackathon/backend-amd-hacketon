@@ -1,5 +1,6 @@
+from datetime import datetime
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class KnowledgeUploadRequest(BaseModel):
     title: str
@@ -16,7 +17,6 @@ class KnowledgeDocumentResponse(BaseModel):
     title: str
     source: str | None
     embedding_status: str
-    created_at: str | None = None  # Using string for easier serialization or datetime if configured
+    created_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
