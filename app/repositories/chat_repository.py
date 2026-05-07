@@ -50,3 +50,10 @@ class ChatRepository:
             .limit(limit)
         )
         return list(reversed(self.db.scalars(statement).all()))
+
+    def list_sessions(self, user_id: UUID | None = None, limit: int = 20) -> list[ChatSession]:
+        statement = select(ChatSession)
+        if user_id:
+            statement = statement.where(ChatSession.user_id == user_id)
+        statement = statement.order_by(ChatSession.updated_at.desc()).limit(limit)
+        return list(self.db.scalars(statement).all())

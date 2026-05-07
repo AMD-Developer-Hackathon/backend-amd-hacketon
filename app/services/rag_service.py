@@ -1,7 +1,19 @@
 from dataclasses import dataclass
+import logging
 import re
 
 from sqlalchemy.orm import Session
+
+try:
+    from sentence_transformers import SentenceTransformer  # type: ignore[import-untyped]
+    _SENTENCE_TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    SentenceTransformer = None  # type: ignore[assignment,misc]
+    _SENTENCE_TRANSFORMERS_AVAILABLE = False
+    logging.getLogger(__name__).warning(
+        "sentence_transformers not installed. RAG will use keyword search fallback. "
+        "Run: pip install sentence-transformers"
+    )
 
 from app.models.knowledge import KnowledgeDocument
 from app.repositories.knowledge_repository import KnowledgeRepository
@@ -28,6 +40,19 @@ class RAGService:
         )
 
     def search(self, question: str, limit: int = 3) -> list[KnowledgeDocument]:
+        # Try vector search first (requires sentence_transformers + pgvector)
+        if _SENTENCE_TRANSFORMERS_AVAILABLE:
+            try:
+                model = SentenceTransformer("all-MiniLM-L6-v2")
+                query_embedding = model.encode(question).tolist()
+                documents = self.knowledge_repository.search_by_embedding(query_embedding, limit=limit)
+                if documents:
+                    return documents
+                logging.info("Vector search returned 0 results, falling back to keyword search.")
+            except Exception as exc:
+                logging.error(f"Vector search failed, falling back to keyword search: {exc}")
+
+        # Fallback: keyword frequency scoring
         keywords = self._keywords(question)
         if not keywords:
             return []

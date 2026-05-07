@@ -1,0 +1,10 @@
+.venv/
+new_venv/
+__pycache__/
+*.pyc
+.env
+.git/
+.github/
+.idea/
+.vscode/
+alembic.ini.save

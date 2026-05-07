@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     vllm_base_url: str | None = None
     vllm_api_key: str | None = None
     vllm_model: str | None = None
+    
+    admin_api_key: str = Field(default="change-me", validation_alias="ADMIN_API_KEY")
 
     model_config = SettingsConfigDict(
         env_file=".env",

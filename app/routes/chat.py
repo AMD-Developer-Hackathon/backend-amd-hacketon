@@ -1,4 +1,5 @@
 from time import perf_counter
+from fastapi import Request
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
@@ -8,21 +9,63 @@ from app.config import get_settings
 from app.database import get_db
 from app.repositories.chat_repository import ChatRepository
 from app.schemas.chat import ChatRequest, ChatResponse
+import logging
 from app.services.ai_service import (
     AIProviderConfigError,
     AIProviderRequestError,
     AIProviderTimeoutError,
     AIService,
+    AIResult,
 )
 from app.services.rag_service import RAGService
 
 
-router = APIRouter(prefix="/chat", tags=["chat"])
+from uuid import UUID
 
+router = APIRouter(prefix="/chat", tags=["chat"])
+@router.get("/sessions")
+async def get_sessions(
+    user_id: UUID | None = None,
+    limit: int = 20,
+    db: Session = Depends(get_db)
+):
+    chat_repository = ChatRepository(db)
+    sessions = chat_repository.list_sessions(user_id=user_id, limit=limit)
+    return {
+        "sessions": [
+            {
+                "id": s.id,
+                "title": s.title,
+                "created_at": s.created_at,
+                "updated_at": s.updated_at
+            } for s in sessions
+        ]
+    }
+
+@router.get("/sessions/{session_id}/messages")
+async def get_chat_history(
+    session_id: UUID,
+    db: Session = Depends(get_db)
+):
+    chat_repository = ChatRepository(db)
+    session = chat_repository.get_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Chat session not found",
+        )
+    messages = chat_repository.list_recent_messages(session_id, limit=50)
+    return {"session_id": session_id, "messages": messages}
+
+
+
+from app.dependencies.limiter import limiter
 
 @router.post("", response_model=ChatResponse)
+@limiter.limit("20/minute")
 async def create_chat_completion(
-    request: ChatRequest,
+    request: Request,
+    chat_request: ChatRequest,
     db: Session = Depends(get_db),
 ) -> ChatResponse:
     started_at = perf_counter()
@@ -32,22 +75,37 @@ async def create_chat_completion(
     ai_service = AIService(settings)
 
     try:
-        session = _get_or_create_session(chat_repository, request)
+        session = _get_or_create_session(chat_repository, chat_request)
         chat_repository.add_message(
             session_id=session.id,
             role="user",
-            content=request.message,
+            content=chat_request.message,
         )
 
-        rag_result = rag_service.retrieve(request.message)
+        rag_result = rag_service.retrieve(chat_request.message)
         system_prompt = _build_system_prompt(rag_result.context)
         history = chat_repository.list_recent_messages(session.id)
 
-        ai_result = await ai_service.complete(
-            system_prompt=system_prompt,
-            user_message=request.message,
-            history=history[:-1],
-        )
+        try:
+            ai_result = await ai_service.complete(
+                system_prompt=system_prompt,
+                user_message=chat_request.message,
+                history=history[:-1],
+            )
+        except (AIProviderTimeoutError, AIProviderRequestError) as exc:
+            logging.warning(f"AI Provider failed: {exc}. Falling back gracefully to mock provider.")
+            fallback_settings = get_settings().model_copy(update={"ai_provider": "mock"})
+            fallback_service = AIService(fallback_settings)
+            fallback_result = await fallback_service.complete(
+                system_prompt=system_prompt,
+                user_message=chat_request.message,
+                history=history[:-1],
+            )
+            ai_result = AIResult(
+                content=f"[Fallback] {fallback_result.content}",
+                model=f"fallback:{fallback_result.model}",
+                raw_response={"fallback_error": str(exc)}
+            )
 
         chat_repository.add_message(
             session_id=session.id,
@@ -121,9 +179,12 @@ def _get_or_create_session(
 def _build_system_prompt(retrieved_context: str) -> str:
     return f"""You are AMD Smart Product Assistant, a concise and practical AI assistant for AMD products and technologies.
 
-You help users understand AMD Ryzen, Radeon, AMD Instinct, ROCm, vLLM, GPU acceleration, and AI workload planning.
-Prefer accurate, implementation-ready guidance. If the user asks for product recommendations, ask for workload, budget, and deployment constraints when needed.
-Do not claim to run ROCm or AMD GPU inference locally on a Mac. For local development, explain that the backend can use a mock provider and later switch to vLLM on AMD Developer Cloud.
+Rules:
+1. Answer clearly and simply.
+2. Use Indonesian if the user asks in Indonesian. Use English if the user asks in English.
+3. If the user asks for product recommendation, ask or infer: budget, use case, performance need, and portability need.
+4. Do not invent product availability.
+5. Explain technical terms in simple language.
 
 Retrieved knowledge context:
 {retrieved_context}

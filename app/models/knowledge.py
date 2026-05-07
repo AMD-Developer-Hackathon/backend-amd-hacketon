@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import DateTime, String, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -21,6 +22,7 @@ class KnowledgeDocument(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     source: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
     embedding_status: Mapped[str] = mapped_column(
         String(32),
         nullable=False,
