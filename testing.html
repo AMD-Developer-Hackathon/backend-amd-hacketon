@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS — AI Agent Command Center | AMD Hackathon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        void: { 950: '#05050a', 900: '#0a0a14', 800: '#10101e', 700: '#1a1a2e' },
+                        amd: { red: '#ED1C24', orange: '#FF6B00', glow: '#ff2d35' },
+                        cyber: { cyan: '#00f0ff', teal: '#00d4aa', blue: '#0088ff', purple: '#8b5cf6' },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #05050a; color: #e2e8f0; overflow-x: hidden; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0a0a14; }
+        ::-webkit-scrollbar-thumb { background: #ED1C24; border-radius: 4px; }
+
+        /* Scanline Overlay */
+        .scanline::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.03) 2px,
+                rgba(0,0,0,0.03) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Glitch Effect */
+        @keyframes glitch {
+            0%, 100% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+        }
+        .glitch-text:hover {
+            animation: glitch 0.3s ease infinite;
+        }
+        .glitch-text::before,
+        .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+        .glitch-text::before {
+            color: #00f0ff;
+            clip-path: inset(0 0 60% 0);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .glitch-text::after {
+            color: #ED1C24;
+            clip-path: inset(40% 0 0 0);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .glitch-text:hover::before,
+        .glitch-text:hover::after { opacity: 0.8; }
+
+        /* Hexagon */
+        .hexagon {
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        }
+
+        /* Pulse Ring */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+        .pulse-ring::before,
+        .pulse-ring::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border: 2px solid #ED1C24;
+            border-radius: 50%;
+            animation: pulse-ring 2s ease-out infinite;
+        }
+        .pulse-ring::after { animation-delay: 1s; }
+
+        /* Rotating Border */
+        @keyframes rotate-border {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .rotating-border {
+            position: relative;
+            overflow: hidden;
+            border-radius: 16px;
+        }
+        .rotating-border::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: conic-gradient(from 0deg, #ED1C24, #FF6B00, #00f0ff, #8b5cf6, #ED1C24);
+            animation: rotate-border 4s linear infinite;
+            z-index: -1;
+            border-radius: 16px;
+        }
+        .rotating-border::after {
+            content: '';
+            position: absolute;
+            inset: 1px;
+            background: #10101e;
+            border-radius: 15px;
+            z-index: -1;
+        }
+
+        /* Data Stream */
+        @keyframes data-stream {
+            0% { transform: translateY(-100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+        .data-stream {
+            position: fixed;
+            top: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: rgba(237, 28, 36, 0.15);
+            writing-mode: vertical-rl;
+            animation: data-stream var(--duration) linear infinite;
+            animation-delay: var(--delay);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Neon Glow */
+        .neon-red { text-shadow: 0 0 10px rgba(237,28,36,0.5), 0 0 40px rgba(237,28,36,0.2); }
+        .neon-cyan { text-shadow: 0 0 10px rgba(0,240,255,0.5), 0 0 40px rgba(0,240,255,0.2); }
+        .box-glow-red { box-shadow: 0 0 20px rgba(237,28,36,0.15), inset 0 1px 0 rgba(237,28,36,0.1); }
+        .box-glow-cyan { box-shadow: 0 0 20px rgba(0,240,255,0.1), inset 0 1px 0 rgba(0,240,255,0.1); }
+
+        /* Typing cursor */
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+        .cursor-blink { animation: blink 1s step-end infinite; }
+
+        /* Progress arc */
+        @keyframes arc-fill {
+            from { stroke-dashoffset: 283; }
+        }
+        .arc-animate { animation: arc-fill 2s ease-out forwards; }
+
+        /* Float */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .float { animation: float 4s ease-in-out infinite; }
+        .float-delay { animation: float 4s ease-in-out infinite; animation-delay: 1s; }
+        .float-delay-2 { animation: float 4s ease-in-out infinite; animation-delay: 2s; }
+
+        /* Slide In */
+        @keyframes slide-up {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .slide-up { animation: slide-up 0.6s ease-out forwards; }
+        .slide-up-d1 { animation: slide-up 0.6s ease-out 0.1s forwards; opacity: 0; }
+        .slide-up-d2 { animation: slide-up 0.6s ease-out 0.2s forwards; opacity: 0; }
+        .slide-up-d3 { animation: slide-up 0.6s ease-out 0.3s forwards; opacity: 0; }
+        .slide-up-d4 { animation: slide-up 0.6s ease-out 0.4s forwards; opacity: 0; }
+
+        /* Hex Grid BG */
+        .hex-grid {
+            background-image: 
+                linear-gradient(30deg, rgba(237,28,36,0.03) 12%, transparent 12.5%, transparent 87%, rgba(237,28,36,0.03) 87.5%),
+                linear-gradient(150deg, rgba(237,28,36,0.03) 12%, transparent 12.5%, transparent 87%, rgba(237,28,36,0.03) 87.5%),
+                linear-gradient(30deg, rgba(237,28,36,0.03) 12%, transparent 12.5%, transparent 87%, rgba(237,28,36,0.03) 87.5%),
+                linear-gradient(150deg, rgba(237,28,36,0.03) 12%, transparent 12.5%, transparent 87%, rgba(237,28,36,0.03) 87.5%),
+                linear-gradient(60deg, rgba(0,240,255,0.02) 25%, transparent 25.5%, transparent 75%, rgba(0,240,255,0.02) 75%),
+                linear-gradient(60deg, rgba(0,240,255,0.02) 25%, transparent 25.5%, transparent 75%, rgba(0,240,255,0.02) 75%);
+            background-size: 80px 140px;
+            background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0, 40px 70px;
+        }
+
+        /* Chat message line */
+        .chat-line::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #ED1C24, transparent);
+        }
+
+        /* Skill node */
+        .skill-node {
+            transition: all 0.3s ease;
+        }
+        .skill-node:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(237,28,36,0.3);
+        }
+        .skill-node.active {
+            border-color: #ED1C24;
+            background: rgba(237,28,36,0.1);
+        }
+
+        /* Metric bar */
+        .metric-bar {
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            100% { left: 100%; }
+        }
+
+        /* Input glow on focus */
+        .input-glow:focus {
+            box-shadow: 0 0 0 1px #ED1C24, 0 0 20px rgba(237,28,36,0.15);
+        }
+
+        /* Corner decorations */
+        .corner-tl::before, .corner-br::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: #ED1C24;
+            border-style: solid;
+        }
+        .corner-tl::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+        .corner-br::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+        /* Canvas */
+        #neural-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Tab active */
+        .tab-active {
+            color: #ED1C24;
+            border-bottom: 2px solid #ED1C24;
+        }
+
+        /* Toast */
+        @keyframes toast-in {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes toast-out {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        .toast-enter { animation: toast-in 0.4s ease-out; }
+        .toast-exit { animation: toast-out 0.3s ease-in forwards; }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .grid-main { grid-template-columns: 1fr !important; }
+            .sidebar-left, .sidebar-right { display: none; }
+        }
+    </style>
+</head>
+<body class="scanline hex-grid">
+    <!-- Neural Network Canvas -->
+    <canvas id="neural-canvas"></canvas>
+
+    <!-- Data Streams -->
+    <div class="data-stream left-[5%]" style="--duration:8s;--delay:0s;">01001110 01000101 01011000 01010101 01010011</div>
+    <div class="data-stream left-[15%]" style="--duration:12s;--delay:2s;">AMD Ryzen AI NPU 55 TOPS</div>
+    <div class="data-stream left-[85%]" style="--duration:10s;--delay:1s;">11010010 10110100 01101001 11001010</div>
+    <div class="data-stream left-[92%]" style="--duration:9s;--delay:3s;">NEURAL ENGINE v4.2.1 ACTIVE</div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-6 right-6 z-[100] flex flex-col gap-3"></div>
+
+    <!-- ===== HEADER ===== -->
+    <header class="fixed top-0 left-0 right-0 z-50 border-b border-white/5" style="background: rgba(5,5,10,0.85); backdrop-filter: blur(20px);">
+        <div class="max-w-[1920px] mx-auto px-6 h-16 flex items-center justify-between">
+            <!-- Left: Logo -->
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 hexagon bg-gradient-to-br from-amd-red to-amd-orange flex items-center justify-center">
+                        <span class="iconify text-white text-sm" data-icon="mdi:chip"></span>
+                    </div>
+                    <span class="font-mono font-bold text-lg tracking-wider">NEXUS<span class="text-amd-red">.</span>AI</span>
+                </div>
+                <div class="hidden md:flex items-center gap-1 px-3 py-1 rounded-full border border-cyber-cyan/20 bg-cyber-cyan/5">
+                    <div class="w-1.5 h-1.5 rounded-full bg-cyber-cyan animate-pulse"></div>
+                    <span class="font-mono text-[10px] text-cyber-cyan tracking-wider">SYSTEM ONLINE</span>
+                </div>
+            </div>
+
+            <!-- Center: Nav -->
+            <nav class="hidden md:flex items-center gap-1">
+                <button onclick="switchView('command')" id="nav-command" class="nav-btn px-4 py-2 text-sm font-medium text-amd-red border-b-2 border-amd-red transition-all">Command</button>
+                <button onclick="switchView('agents')" id="nav-agents" class="nav-btn px-4 py-2 text-sm font-medium text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-all">Agents</button>
+                <button onclick="switchView('analytics')" id="nav-analytics" class="nav-btn px-4 py-2 text-sm font-medium text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-all">Analytics</button>
+                <button onclick="switchView('settings')" id="nav-settings" class="nav-btn px-4 py-2 text-sm font-medium text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-all">Config</button>
+            </nav>
+
+            <!-- Right: Status -->
+            <div class="flex items-center gap-4">
+                <div class="hidden lg:flex items-center gap-2 font-mono text-xs text-slate-500">
+                    <span id="clock">00:00:00</span>
+                    <span class="text-slate-700">|</span>
+                    <span>AMD Hackathon 2025</span>
+                </div>
+                <button onclick="showToast('Notification system active', 'info')" class="relative p-2 rounded-lg hover:bg-white/5 transition-colors">
+                    <span class="iconify text-xl text-slate-400" data-icon="mdi:bell-outline"></span>
+                    <div class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amd-red"></div>
+                </button>
+                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amd-red to-amd-orange flex items-center justify-center text-xs font-bold cursor-pointer hover:scale-110 transition-transform">
+                    D
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== MAIN LAYOUT ===== -->
+    <main class="pt-16 min-h-screen relative z-10">
+        <div class="grid-main grid gap-0 h-[calc(100vh-4rem)]" style="grid-template-columns: 280px 1fr 300px;">
+
+            <!-- ===== LEFT SIDEBAR ===== -->
+            <aside class="sidebar-left border-r border-white/5 overflow-y-auto p-4 flex flex-col gap-4" style="background: rgba(10,10,20,0.6);">
+                
+                <!-- Agent Core Status -->
+                <div class="slide-up">
+                    <div class="text-[10px] font-mono font-semibold text-slate-500 tracking-widest uppercase mb-3">Agent Core</div>
+                    <div class="relative flex items-center justify-center py-6">
+                        <!-- Pulse rings -->
+                        <div class="absolute w-32 h-32 rounded-full border border-amd-red/20 animate-ping" style="animation-duration:3s;"></div>
+                        <div class="absolute w-24 h-24 rounded-full border border-amd-red/30 animate-ping" style="animation-duration:2s;"></div>
+                        <!-- Core circle -->
+                        <div class="relative w-20 h-20 rounded-full bg-gradient-to-br from-amd-red/20 to-transparent border border-amd-red/40 flex items-center justify-center pulse-ring">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amd-red to-amd-orange flex items-center justify-center">
+                                <span class="iconify text-2xl text-white" data-icon="mdi:brain"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <div class="font-semibold text-sm">NEXUS Prime</div>
+                        <div class="font-mono text-[10px] text-cyber-cyan">v4.2.1 — Active</div>
+                    </div>
+                </div>
+
+                <!-- Performance Arcs -->
+                <div class="slide-up-d1">
+                    <div class="text-[10px] font-mono font-semibold text-slate-500 tracking-widest uppercase mb-3">Performance</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex flex-col items-center">
+                            <svg width="64" height="64" viewBox="0 0 100 100" class="transform -rotate-90">
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="#ED1C24" stroke-width="6" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="53" class="arc-animate"/>
+                            </svg>
+                            <span class="font-mono text-xs font-bold -mt-10 mb-4">80%</span>
+                            <span class="text-[10px] text-slate-500">CPU</span>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <svg width="64" height="64" viewBox="0 0 100 100" class="transform -rotate-90">
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="#00f0ff" stroke-width="6" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="92" class="arc-animate" style="animation-delay:0.3s"/>
+                            </svg>
+                            <span class="font-mono text-xs font-bold -mt-10 mb-4">65%</span>
+                            <span class="text-[10px] text-slate-500">NPU</span>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <svg width="64" height="64" viewBox="0 0 100 100" class="transform -rotate-90">
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="#FF6B00" stroke-width="6" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="132" class="arc-animate" style="animation-delay:0.5s"/>
+                            </svg>
+                            <span class="font-mono text-xs font-bold -mt-10 mb-4">50%</span>
+                            <span class="text-[10px] text-slate-500">GPU</span>
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <svg width="64" height="64" viewBox="0 0 100 100" class="transform -rotate-90">
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                                <circle cx="50" cy="50" r="42" fill="none" stroke="#8b5cf6" stroke-width="6" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="185" class="arc-animate" style="animation-delay:0.7s"/>
+                            </svg>
+                            <span class="font-mono text-xs font-bold -mt-10 mb-4">30%</span>
+                            <span class="text-[10px] text-slate-500">RAM</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agent Skills -->
+                <div class="slide-up-d2">
+                    <div class="text-[10px] font-mono font-semibold text-slate-500 tracking-widest uppercase mb-3">Capabilities</div>
+                    <div class="space-y-2">
+                        <div class="skill-node active flex items-center gap-3 p-2.5 rounded-lg border border-amd-red/30 bg-amd-red/5 cursor-pointer">
+                            <span class="iconify text-amd-red" data-icon="mdi:code-braces"></span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-medium">Code Generation</div>
+                                <div class="text-[10px] text-slate-500 font-mono">Python, JS, Rust</div>
+                            </div>
+                            <div class="w-2 h-2 rounded-full bg-amd-red"></div>
+                        </div>
+                        <div class="skill-node active flex items-center gap-3 p-2.5 rounded-lg border border-amd-red/30 bg-amd-red/5 cursor-pointer">
+                            <span class="iconify text-amd-red" data-icon="mdi:image-auto-adjust"></span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-medium">Vision Analysis</div>
+                                <div class="text-[10px] text-slate-500 font-mono">OCR, Detection</div>
+                            </div>
+                            <div class="w-2 h-2 rounded-full bg-amd-red"></div>
+                        </div>
+                        <div class="skill-node flex items-center gap-3 p-2.5 rounded-lg border border-white/5 bg-white/[0.02] cursor-pointer hover:border-white/10 transition-colors">
+                            <span class="iconify text-slate-500" data-icon="mdi:database-search"></span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-medium text-slate-400">RAG Pipeline</div>
+                                <div class="text-[10px] text-slate-600 font-mono">Vector Search</div>
+                            </div>
+                            <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                        </div>
+                        <div class="skill-node flex items-center gap-3 p-2.5 rounded-lg border border-white/5 bg-white/[0.02] cursor-pointer hover:border-white/10 transition-colors">
+                            <span class="iconify text-slate-500" data-icon="mdi:robot-outline"></span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-medium text-slate-400">Multi-Agent</div>
+                                <div class="text-[10px] text-slate-600 font-mono">Orchestration</div>
+                            </div>
+                            <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                        </div>
+                        <div class="skill-node flex items-center gap-3 p-2.5 rounded-lg border border-white/5 bg-white/[0.02] cursor-pointer hover:border-white/10 transition-colors">
+                            <span class="iconify text-slate-500" data-icon="mdi:web"></span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-medium text-slate-400">Web Browsing</div>
+                                <div class="text-[10px] text-slate-600 font-mono">Live Fetch</div>
+                            </div>
+                            <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AMD Hardware -->
+                <div class="slide-up-d3 mt-auto">
+                    <div class="p-3 rounded-lg border border-white/5 bg-white/[0.02]">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="iconify text-amd-red text-sm" data-icon="mdi:chip"></span>
+                            <span class="text-[10px] font-mono font-semibold text-slate-500 tracking-wider">HARDWARE</span>
+                        </div>
+                        <div class="font-mono text-[10px] text-slate-400 space-y-1">
+                            <div class="flex justify-between"><span>CPU</span><span class="text-slate-300">Ryzen AI 9 HX 370</span></div>
+                            <div class="flex justify-between"><span>NPU</span><span class="text-cyber-cyan">XDNA 2 — 55 TOPS</span></div>
+                            <div class="flex justify-between"><span>GPU</span><span class="text-slate-300">Radeon 890M</span></div>
+                            <div class="flex justify-between"><span>VRAM</span><span class="text-slate-300">16GB LPDDR5X</span></div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- ===== CENTER: COMMAND CONSOLE ===== -->
+            <section class="flex flex-col overflow-hidden" style="background: rgba(5,5,10,0.4);">
+                
+                <!-- Top Bar -->
+                <div class="flex items-center justify-between px-6 py-3 border-b border-white/5">
+                    <div class="flex items-center gap-3">
+                        <h1 class="glitch-text relative text-lg font-bold tracking-tight" data-text="Command Console">Command Console</h1>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amd-red/10 text-amd-red border border-amd-red/20">SESSION #0047</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="clearChat()" class="p-2 rounded-lg hover:bg-white/5 transition-colors text-slate-500 hover:text-slate-300" title="Clear">
+                            <span class="iconify text-lg" data-icon="mdi:delete-outline"></span>
+                        </button>
+                        <button onclick="exportChat()" class="p-2 rounded-lg hover:bg-white/5 transition-colors text-slate-500 hover:text-slate-300" title="Export">
+                            <span class="iconify text-lg" data-icon="mdi:download-outline"></span>
+                        </button>
+                        <button onclick="toggleFullscreen()" class="p-2 rounded-lg hover:bg-white/5 transition-colors text-slate-500 hover:text-slate-300" title="Fullscreen">
+                            <span class="iconify text-lg" data-icon="mdi:fullscreen"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Chat Area -->
+                <div id="chat-area" class="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                    <!-- Welcome Message -->
+                    <div class="flex items-start gap-4 slide-up">
+                        <div class="w-8 h-8 hexagon bg-gradient-to-br from-amd-red to-amd-orange flex-shrink-0 flex items-center justify-center mt-1">
+                            <span class="iconify text-white text-sm" data-icon="mdi:brain"></span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-semibold text-amd-red">NEXUS Prime</span>
+                                <span class="text-[10px] font-mono text-slate-600">12:00:04.231</span>
+                            </div>
+                            <div class="p-4 rounded-xl border border-white/5 bg-white/[0.02] corner-tl corner-br relative">
+                                <p class="text-sm text-slate-300 leading-relaxed mb-3">System initialized. <span class="text-cyber-cyan font-mono text-xs">NEXUS Prime v4.2.1</span> is online and ready on AMD Ryzen AI platform.</p>
+                                <p class="text-sm text-slate-400 leading-relaxed mb-4">Saya adalah AI Agent yang dioptimasi untuk berjalan di atas arsitektur <span class="text-amd-red font-semibold">AMD XDNA 2 NPU</span> dengan kemampuan 55 TOPS. Saya bisa membantu kamu dalam:</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 cursor-pointer hover:border-amd-red/30 hover:bg-amd-red/5 transition-all" onclick="useSuggestion('Buatkan saya fungsi Python untuk image processing menggunakan OpenCV')">
+                                        <span class="iconify text-amd-red text-sm" data-icon="mdi:code-tags"></span>
+                                        <span class="text-xs text-slate-400">Code Generation</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 cursor-pointer hover:border-cyber-cyan/30 hover:bg-cyber-cyan/5 transition-all" onclick="useSuggestion('Analisis performa NPU untuk inferensi model LLM')">
+                                        <span class="iconify text-cyber-cyan text-sm" data-icon="mdi:chart-line"></span>
+                                        <span class="text-xs text-slate-400">Performance Analysis</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 cursor-pointer hover:border-amd-orange/30 hover:bg-amd-orange/5 transition-all" onclick="useSuggestion('Jelaskan arsitektur AMD XDNA 2 NPU dan keunggulannya')">
+                                        <span class="iconify text-amd-orange text-sm" data-icon="mdi:chip"></span>
+                                        <span class="text-xs text-slate-400">Hardware Insight</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 p-2 rounded-lg bg-white/[0.03] border border-white/5 cursor-pointer hover:border-purple-400/30 hover:bg-purple-400/5 transition-all" onclick="useSuggestion('Buatkan arsitektur multi-agent system untuk hackathon')">
+                                        <span class="iconify text-purple-400 text-sm" data-icon="mdi:account-group"></span>
+                                        <span class="text-xs text-slate-400">Multi-Agent Design</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="px-6 py-4 border-t border-white/5" style="background: rgba(10,10,20,0.8); backdrop-filter: blur(10px);">
+                    <!-- Quick Actions -->
+                    <div class="flex items-center gap-2 mb-3">
+                        <button onclick="attachFile()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-colors text-xs text-slate-400 hover:text-slate-200">
+                            <span class="iconify text-sm" data-icon="mdi:paperclip"></span>
+                            Attach
+                        </button>
+                        <button onclick="useTool('web_search')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-colors text-xs text-slate-400 hover:text-slate-200">
+                            <span class="iconify text-sm" data-icon="mdi:web"></span>
+                            Web Search
+                        </button>
+                        <button onclick="useTool('code_interpreter')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-colors text-xs text-slate-400 hover:text-slate-200">
+                            <span class="iconify text-sm" data-icon="mdi:code-braces-box"></span>
+                            Code Run
+                        </button>
+                        <button onclick="useTool('image_gen')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-colors text-xs text-slate-400 hover:text-slate-200">
+                            <span class="iconify text-sm" data-icon="mdi:image-plus"></span>
+                            Image Gen
+                        </button>
+                        <div class="flex-1"></div>
+                        <span id="token-count" class="font-mono text-[10px] text-slate-600">0 tokens</span>
+                    </div>
+                    <!-- Input -->
+                    <div class="flex items-end gap-3">
+                        <div class="flex-1 relative">
+                            <textarea id="chat-input" 
+                                class="input-glow w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 pr-12 text-sm text-slate-200 placeholder-slate-600 resize-none focus:outline-none focus:border-amd-red/50 transition-all"
+                                rows="1"
+                                placeholder="Ketik perintah atau pertanyaan..."
+                                oninput="autoResize(this); updateTokenCount()"
+                                onkeydown="handleKeyDown(event)"
+                                style="max-height: 150px;"
+                            ></textarea>
+                            <button onclick="sendMessage()" class="absolute right-2 bottom-2 w-8 h-8 rounded-lg bg-amd-red hover:bg-red-600 flex items-center justify-center transition-colors active:scale-95">
+                                <span class="iconify text-white text-lg" data-icon="mdi:send"></span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between mt-2">
+                        <span class="text-[10px] text-slate-600 font-mono">Powered by AMD Ryzen AI — XDNA 2 NPU</span>
+                        <span class="text-[10px] text-slate-600 font-mono">Shift+Enter untuk baris baru</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== RIGHT SIDEBAR ===== -->
+            <aside class="sidebar-right border-l border-white/5 overflow-y-auto p-4 flex flex-col gap-4" style="background: rgba(10,10,20,0.6);">
+                
+                <!-- Live Metrics -->
+                <div class="slide-up">
+                    <div class="text-[10px] font-mono font-semibold text-slate-500 tracking-widest uppercase mb-3">Live Metrics</div>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-[11px] text-slate-400">Response Time</span>
+                                <span class="font-mono text-[11px] text-cyber-cyan" id="metric-latency">42ms</span>
+                            </div>
+                            <div class="h-1.5 rounded-full bg-white/5 metric-bar">
+                                <div id="bar-latency" class="h-full rounded-full bg-gradient-to-r from-cyber-cyan to-cyber-teal transition-all duration-1000" style="width: 15%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-[11px] text-slate-400">Throughput</span>
+                                <span class="font-mono text-[11px] text-amd-red" id="metric-throughput">128 t/s</span>
+                            </div>
+                            <div class="h-1.5 rounded-full bg-white/5 metric-bar">
+                                <div id="bar-throughput" class="h-full rounded-full bg-gradient-to-r from-amd-red to-amd-orange transition-all duration-1000" style="width: 64%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-[11px] text-slate-400">NPU Utilization</span>
+                                <span class="font-mono text-[11px] text-purple-400" id="metric-npu">65%</span>
+                            </div>
+                            <div class="h-1.5 rounded-full bg-white/5 metric-bar">
+                                <div id="bar-npu" class="h-full rounded-full bg-gradient-to-r from-purple-500 to-purple-400 transition-all duration-1000" style="width: 65%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-[11px] text-slate-400">Memory Usage</span>
+                                <span class="font-mono text-[11px] text-amd-orange" id="metric-memory">4.2 GB</span>
+                            </div>
+                            <div class="h-1.5 rounded-full bg-white/5 metric-bar">
+                                <div id="bar-memory" class="h-full rounded-full bg-gradient-to-r from-amd-orange to-yellow-500 transition-all duration-1000" style="width: 26%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mini Chart -->
+                <div class="slide-up-d1">
+                    <div class="text-[10px] font-mono font-semibold text-slate-500 tracking-widest uppercase mb-3">Token Throughput</div>
+                    <div class="p-3 rounded-xl border border-white/5 bg-white/[0.02]">
+                        <canvas id="mini-chart" width="260" height="80"></canvas>
+                    </div>
+                </div>
+
+                <!-- Active Tools -->
+                <div class="slide-up-d2">
+                    <div class="text-[10px] font-mono font-semibold text-slate-500 tracking-widest uppercase mb-3">Active Tools</div>
+                    <div class="space-y-2" id="active-tools">
+                        <div class="flex items-center gap-2 p-2 rounded-lg border border-amd-red/20 bg-amd-red/5">
+                            <div class="w-6 h-6 rounded bg-amd-red/20 flex items-center justify-center">
+                                <span class="iconify text-amd-red text-xs" data-icon="mdi:brain"></span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-[11px] font-medium">LLM Engine</div>
+                                <div class="text-[9px] font-mono text-amd-red/70">Running</div>
+                            </div>
+                            <div class="w-1.5 h-1.5 rounded-full bg-amd-red animate-pulse"></div>
+                        </div>
+                        <div class="flex items-center gap-2 p-2 rounded-lg border border-white/5 bg-white/[0.02]">
+                            <div class="w-6 h-6 rounded bg-white/5 flex items-center justify-center">
+                                <span class="iconify text-slate-500 text-xs" data-icon="mdi:database"></span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-[11px] font-medium text-slate-400">Vector DB</div>
+                                <div class="text-[9px] font-mono text-slate-600">Standby</div>
+                            </div>
+                            <div class="w-1.5 h-1.5 rounded-full bg-slate-600"></div>
+                        </div>
+                        <div class="flex items-center gap-2 p-2 rounded-lg border border-white/5 bg-white/[0.02]">
+                            <div class="w-6 h-6 rounded bg-white/5 flex items-center justify-center">
+                                <span class="iconify text-slate-500 text-xs" data-icon="mdi:code-executable"></span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="text-[11px] font-medium text-slate-400">Sandbox</div>
+                                <div class="text-[9px] font-mono text-slate-600">Idle</div>
+                            </div>
+                            <div class="w-1.5 h-1.5 rounded-full bg-slate-600"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conversation History -->
+                <div class="slide-up-d3">
+                    <div class="text-[10px] font-mono font-semibold text-slate-500 tracking-widest uppercase mb-3">History</div>
+                    <div class="space-y-1.5">
+                        <div class="p-2.5 rounded-lg border border-amd-red/20 bg-amd-red/5 cursor-pointer">
+                            <div class="text-[11px] font-medium text-slate-200 truncate">Image Processing Pipeline</div>
+                            <div class="text-[9px] font-mono text-slate-500 mt-0.5">2 min ago — 12 messages</div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-white/5 bg-white/[0.02] cursor-pointer hover:bg-white/[0.04] transition-colors">
+                            <div class="text-[11px] font-medium text-slate-400 truncate">NPU Benchmark Analysis</div>
+                            <div class="text-[9px] font-mono text-slate-600 mt-0.5">1 hour ago — 8 messages</div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-white/5 bg-white/[0.02] cursor-pointer hover:bg-white/[0.04] transition-colors">
+                            <div class="text-[11px] font-medium text-slate-400 truncate">Multi-Agent Architecture</div>
+                            <div class="text-[9px] font-mono text-slate-600 mt-0.5">3 hours ago — 15 messages</div>
+                        </div>
+                        <div class="p-2.5 rounded-lg border border-white/5 bg-white/[0.02] cursor-pointer hover:bg-white/[0.04] transition-colors">
+                            <div class="text-[11px] font-medium text-slate-400 truncate">RAG System Design</div>
+                            <div class="text-[9px] font-mono text-slate-600 mt-0.5">Yesterday — 22 messages</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Log -->
+                <div class="slide-up-d4 mt-auto">
+                    <div class="text-[10px] font-mono font-semibold text-slate-500 tracking-widest uppercase mb-3">System Log</div>
+                    <div id="system-log" class="p-3 rounded-lg border border-white/5 bg-void-950 font-mono text-[9px] text-slate-600 space-y-1 max-h-32 overflow-y-auto">
+                        <div><span class="text-cyber-cyan">[INFO]</span> NPU initialized — 55 TOPS</div>
+                        <div><span class="text-green-500">[OK]</span> Model loaded — 7B params</div>
+                        <div><span class="text-cyber-cyan">[INFO]</span> KV Cache allocated — 4GB</div>
+                        <div><span class="text-amd-orange">[WARN]</span> Thermal: 62°C (nominal)</div>
+                        <div><span class="text-green-500">[OK]</span> All systems operational</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <script>
+        // ===== NEURAL NETWORK CANVAS =====
+        const canvas = document.getElementById('neural-canvas');
+        const ctx = canvas.getContext('2d');
+        let nodes = [];
+        let mouse = { x: 0, y: 0 };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+        class Node {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.3;
+                this.vy = (Math.random() - 0.5) * 0.3;
+                this.radius = Math.random() * 1.5 + 0.5;
+                this.color = Math.random() > 0.7 ? '#ED1C24' : (Math.random() > 0.5 ? '#00f0ff' : '#8b5cf6');
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+                // Mouse attraction
+                const dx = mouse.x - this.x;
+                const dy = mouse.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 200) {
+                    this.vx += dx * 0.00005;
+                    this.vy += dy * 0.00005;
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = 0.4;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        for (let i = 0; i < 80; i++) nodes.push(new Node());
+
+        function animateCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            nodes.forEach(n => { n.update(); n.draw(); });
+            // Draw connections
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dx = nodes[i].x - nodes[j].x;
+                    const dy = nodes[i].y - nodes[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 150) {
+                        ctx.beginPath();
+                        ctx.moveTo(nodes[i].x, nodes[i].y);
+                        ctx.lineTo(nodes[j].x, nodes[j].y);
+                        ctx.strokeStyle = `rgba(237, 28, 36, ${0.06 * (1 - dist / 150)})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animateCanvas);
+        }
+        animateCanvas();
+
+        // ===== CLOCK =====
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toTimeString().split(' ')[0];
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ===== MINI CHART =====
+        const chartCanvas = document.getElementById('mini-chart');
+        const chartCtx = chartCanvas.getContext('2d');
+        let chartData = Array(40).fill(0).map(() => Math.random() * 60 + 40);
+
+        function drawChart() {
+            const w = chartCanvas.width;
+            const h = chartCanvas.height;
+            chartCtx.clearRect(0, 0, w, h);
+            
+            // Grid lines
+            for (let i = 0; i < 4; i++) {
+                const y = (h / 4) * i;
+                chartCtx.beginPath();
+                chartCtx.moveTo(0, y);
+                chartCtx.lineTo(w, y);
+                chartCtx.strokeStyle = 'rgba(255,255,255,0.03)';
+                chartCtx.lineWidth = 1;
+                chartCtx.stroke();
+            }
+
+            // Gradient fill
+            const gradient = chartCtx.createLinearGradient(0, 0, 0, h);
+            gradient.addColorStop(0, 'rgba(237, 28, 36, 0.2)');
+            gradient.addColorStop(1, 'rgba(237, 28, 36, 0)');
+
+            chartCtx.beginPath();
+            chartCtx.moveTo(0, h);
+            chartData.forEach((val, i) => {
+                const x = (w / (chartData.length - 1)) * i;
+                const y = h - (val / 100) * h;
+                if (i === 0) chartCtx.lineTo(x, y);
+                else {
+                    const prevX = (w / (chartData.length - 1)) * (i - 1);
+                    const prevY = h - (chartData[i - 1] / 100) * h;
+                    const cpX = (prevX + x) / 2;
+                    chartCtx.bezierCurveTo(cpX, prevY, cpX, y, x, y);
+                }
+            });
+            chartCtx.lineTo(w, h);
+            chartCtx.closePath();
+            chartCtx.fillStyle = gradient;
+            chartCtx.fill();
+
+            // Line
+            chartCtx.beginPath();
+            chartData.forEach((val, i) => {
+                const x = (w / (chartData.length - 1)) * i;
+                const y = h - (val / 100) * h;
+                if (i === 0) chartCtx.moveTo(x, y);
+                else {
+                    const prevX = (w / (chartData.length - 1)) * (i - 1);
+                    const prevY = h - (chartData[i - 1] / 100) * h;
+                    const cpX = (prevX + x) / 2;
+                    chartCtx.bezierCurveTo(cpX, prevY, cpX, y, x, y);
+                }
+            });
+            chartCtx.strokeStyle = '#ED1C24';
+            chartCtx.lineWidth = 1.5;
+            chartCtx.stroke();
+
+            // Dot at end
+            const lastX = w;
+            const lastY = h - (chartData[chartData.length - 1] / 100) * h;
+            chartCtx.beginPath();
+            chartCtx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+            chartCtx.fillStyle = '#ED1C24';
+            chartCtx.fill();
+            chartCtx.beginPath();
+            chartCtx.arc(lastX, lastY, 6, 0, Math.PI * 2);
+            chartCtx.strokeStyle = 'rgba(237,28,36,0.3)';
+            chartCtx.lineWidth = 1;
+            chartCtx.stroke();
+        }
+
+        function updateChart() {
+            chartData.shift();
+            chartData.push(Math.random() * 40 + 80 + Math.sin(Date.now() / 2000) * 20);
+            drawChart();
+            requestAnimationFrame(updateChart);
+        }
+        drawChart();
+        updateChart();
+
+        // ===== LIVE METRICS UPDATE =====
+        function updateMetrics() {
+            const latency = Math.floor(Math.random() * 30 + 30);
+            const throughput = Math.floor(Math.random() * 50 + 100);
+            const npu = Math.floor(Math.random() * 20 + 55);
+            const memory = (Math.random() * 1.5 + 3.5).toFixed(1);
+
+            document.getElementById('metric-latency').textContent = latency + 'ms';
+            document.getElementById('metric-throughput').textContent = throughput + ' t/s';
+            document.getElementById('metric-npu').textContent = npu + '%';
+            document.getElementById('metric-memory').textContent = memory + ' GB';
+
+            document.getElementById('bar-latency').style.width = (latency / 300 * 100) + '%';
+            document.getElementById('bar-throughput').style.width = (throughput / 200 * 100) + '%';
+            document.getElementById('bar-npu').style.width = npu + '%';
+            document.getElementById('bar-memory').style.width = (parseFloat(memory) / 16 * 100) + '%';
+        }
+        setInterval(updateMetrics, 2000);
+
+        // ===== CHAT FUNCTIONALITY =====
+        const chatArea = document.getElementById('chat-area');
+        const chatInput = document.getElementById('chat-input');
+        let isGenerating = false;
+
+        // AI Response bank
+        const responses = {
+            'code': `<div class="space-y-3">
+                <p class="text-sm text-slate-300">Berikut implementasi yang dioptimasi untuk AMD NPU menggunakan ONNX Runtime:</p>
+                <div class="relative group">
+                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                        <button onclick="copyCode(this)" class="px-2 py-1 rounded text-[10px] font-mono bg-white/10 hover:bg-white/20 text-slate-300 transition-colors">Copy</button>
+                    </div>
+                    <pre class="p-4 rounded-lg bg-void-950 border border-white/5 text-xs font-mono text-cyber-cyan overflow-x-auto"><code>import onnxruntime as ort
+import numpy as np
+
+# Optimized for AMD XDNA 2 NPU
+providers = ['VitisAIExecutionProvider', 'CPUExecutionProvider']
+session = ort.InferenceSession(
+    "model.onnx",
+    providers=providers
+)
+
+def infer(input_data: np.ndarray) -> np.ndarray:
+    """Run inference on NPU with fallback."""
+    outputs = session.run(
+        None,
+        {'input': input_data.astype(np.float32)}
+    )
+    return outputs[0]
+
+# Benchmark
+import time
+start = time.perf_counter()
+result = infer(dummy_input)
+latency = (time.perf_counter() - start) * 1000
+print(f"NPU Latency: {latency:.2f}ms")</code></pre>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amd-red/10 text-amd-red">Python</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-slate-500">onnxruntime</span>
+                    <span class="text-[10px] font-mono text-slate-600">Latency: ~35ms on NPU</span>
+                </div>
+            </div>`,
+            'hardware': `<div class="space-y-3">
+                <p class="text-sm text-slate-300">Arsitektur <span class="text-amd-red font-semibold">AMD XDNA 2</span> merupakan generasi kedua NPU dari AMD dengan peningkatan signifikan:</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="p-3 rounded-lg border border-amd-red/20 bg-amd-red/5">
+                        <div class="font-mono text-lg font-bold text-amd-red">55</div>
+                        <div class="text-[10px] text-slate-400">TOPS Performance</div>
+                    </div>
+                    <div class="p-3 rounded-lg border border-cyber-cyan/20 bg-cyber-cyan/5">
+                        <div class="font-mono text-lg font-bold text-cyber-cyan">4x</div>
+                        <div class="text-[10px] text-slate-400">vs Gen 1 NPU</div>
+                    </div>
+                    <div class="p-3 rounded-lg border border-amd-orange/20 bg-amd-orange/5">
+                        <div class="font-mono text-lg font-bold text-amd-orange">INT8</div>
+                        <div class="text-[10px] text-slate-400">Quantized Infer.</div>
+                    </div>
+                    <div class="p-3 rounded-lg border border-purple-400/20 bg-purple-400/5">
+                        <div class="font-mono text-lg font-bold text-purple-400">Block</div>
+                        <div class="text-[10px] text-slate-400">Sparse Architecture</div>
+                    </div>
+                </div>
+                <p class="text-sm text-slate-400">Keunggulan utama: block-sparse compute yang memungkinkan efisiensi energi 2x lebih baik untuk workload AI generatif dibanding kompetitor.</p>
+            </div>`,
+            'multiagent': `<div class="space-y-3">
+                <p class="text-sm text-slate-300">Arsitektur Multi-Agent yang direkomendasikan untuk hackathon:</p>
+                <div class="space-y-2">
+                    <div class="flex items-start gap-3 p-3 rounded-lg border border-amd-red/20 bg-amd-red/5">
+                        <div class="w-6 h-6 hexagon bg-amd-red/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                            <span class="text-[10px] font-bold text-amd-red">O</span>
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold text-slate-200">Orchestrator Agent</div>
+                            <div class="text-[11px] text-slate-500">Task decomposition & routing — berjalan di CPU</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-3 rounded-lg border border-cyber-cyan/20 bg-cyber-cyan/5 ml-4">
+                        <div class="w-6 h-6 hexagon bg-cyber-cyan/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                            <span class="text-[10px] font-bold text-cyber-cyan">C</span>
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold text-slate-200">Coder Agent</div>
+                            <div class="text-[11px] text-slate-500">Code generation & debugging — NPU accelerated</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-3 rounded-lg border border-amd-orange/20 bg-amd-orange/5 ml-4">
+                        <div class="w-6 h-6 hexagon bg-amd-orange/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                            <span class="text-[10px] font-bold text-amd-orange">R</span>
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold text-slate-200">Reviewer Agent</div>
+                            <div class="text-[11px] text-slate-500">Code review & validation — parallel execution</div>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3 p-3 rounded-lg border border-purple-400/20 bg-purple-400/5 ml-4">
+                        <div class="w-6 h-6 hexagon bg-purple-400/20 flex-shrink-0 flex items-center justify-center mt-0.5">
+                            <span class="text-[10px] font-bold text-purple-400">T</span>
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold text-slate-200">Tester Agent</div>
+                            <div class="text-[11px] text-slate-500">Auto testing & benchmarking — GPU compute</div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs font-mono text-slate-600">Pattern: Hierarchical delegation dengan shared memory pool</p>
+            </div>`,
+            'default': `<div class="space-y-3">
+                <p class="text-sm text-slate-300">Saya memahami permintaan Anda. Sebagai AI Agent yang berjalan di atas platform AMD Ryzen AI, saya akan memproses ini dengan memanfaatkan NPU untuk inferensi yang efisien.</p>
+                <p class="text-sm text-slate-400">Berikut analisis saya:</p>
+                <div class="p-3 rounded-lg border border-white/5 bg-white/[0.02]">
+                    <div class="text-[10px] font-mono text-slate-500 mb-2">PROCESSING PIPELINE</div>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="px-2 py-0.5 rounded bg-green-500/10 text-green-400 font-mono text-[10px]">✓ Tokenize</span>
+                        <span class="text-slate-600">→</span>
+                        <span class="px-2 py-0.5 rounded bg-amd-red/10 text-amd-red font-mono text-[10px]">● NPU Infer</span>
+                        <span class="text-slate-600">→</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-500/10 text-slate-400 font-mono text-[10px]">○ Decode</span>
+                    </div>
+                </div>
+                <p class="text-sm text-slate-400">Apakah Anda ingin saya mendalami topik tertentu atau menjalankan tugas spesifik?</p>
+            </div>`
+        };
+
+        function getTimestamp() {
+            const now = new Date();
+            return now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+        }
+
+        function classifyInput(text) {
+            const lower = text.toLowerCase();
+            if (lower.includes('code') || lower.includes('fungsi') || lower.includes('python') || lower.includes('javascript') || lower.includes('openCV') || lower.includes('implement')) return 'code';
+            if (lower.includes('npu') || lower.includes('amd') || lower.includes('xdna') || lower.includes('hardware') || lower.includes('arsitektur') || lower.includes('ryzen')) return 'hardware';
+            if (lower.includes('multi-agent') || lower.includes('agent') || lower.includes('orchestrat') || lower.includes('hackathon')) return 'multiagent';
+            return 'default';
+        }
+
+        function addMessage(role, content, isHtml = false) {
+            const div = document.createElement('div');
+            div.className = `flex items-start gap-4 slide-up`;
+            
+            if (role === 'user') {
+                div.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex-shrink-0 flex items-center justify-center mt-1 text-xs font-bold">D</div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-semibold text-slate-300">You</span>
+                            <span class="text-[10px] font-mono text-slate-600">${getTimestamp()}</span>
+                        </div>
+                        <div class="p-3 rounded-xl border border-white/5 bg-white/[0.03] ml-auto max-w-[85%]">
+                            <p class="text-sm text-slate-300">${content}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                div.innerHTML = `
+                    <div class="w-8 h-8 hexagon bg-gradient-to-br from-amd-red to-amd-orange flex-shrink-0 flex items-center justify-center mt-1">
+                        <span class="iconify text-white text-sm" data-icon="mdi:brain"></span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-semibold text-amd-red">NEXUS Prime</span>
+                            <span class="text-[10px] font-mono text-slate-600">${getTimestamp()}</span>
+                        </div>
+                        <div class="p-4 rounded-xl border border-white/5 bg-white/[0.02] corner-tl corner-br relative">
+                            ${isHtml ? content : `<p class="text-sm text-slate-300">${content}</p>`}
+                        </div>
+                        <div class="flex items-center gap-3 mt-2">
+                            <button onclick="copyResponse(this)" class="flex items-center gap-1 text-[10px] text-slate-600 hover:text-slate-400 transition-colors">
+                                <span class="iconify text-xs" data-icon="mdi:content-copy"></span> Copy
+                            </button>
+                            <button onclick="showToast('Response regenerated', 'success')" class="flex items-center gap-1 text-[10px] text-slate-600 hover:text-slate-400 transition-colors">
+                                <span class="iconify text-xs" data-icon="mdi:refresh"></span> Regenerate
+                            </button>
+                            <span class="text-[10px] font-mono text-slate-700 ml-auto">${Math.floor(Math.random() * 200 + 100)} tokens · ${Math.floor(Math.random() * 30 + 20)}ms</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function addTypingIndicator() {
+            const div = document.createElement('div');
+            div.id = 'typing-indicator';
+            div.className = 'flex items-start gap-4';
+            div.innerHTML = `
+                <div class="w-8 h-8 hexagon bg-gradient-to-br from-amd-red to-amd-orange flex-shrink-0 flex items-center justify-center mt-1">
+                    <span class="iconify text-white text-sm" data-icon="mdi:brain"></span>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs font-semibold text-amd-red">NEXUS Prime</span>
+                        <span class="text-[10px] font-mono text-amd-red animate-pulse">Processing...</span>
+                    </div>
+                    <div class="p-4 rounded-xl border border-amd-red/20 bg-amd-red/[0.03]">
+                        <div class="flex items-center gap-2">
+                            <div class="flex gap-1">
+                                <div class="w-1.5 h-1.5 rounded-full bg-amd-red animate-bounce" style="animation-delay:0ms"></div>
+                                <div class="w-1.5 h-1.5 rounded-full bg-amd-red animate-bounce" style="animation-delay:150ms"></div>
+                                <div class="w-1.5 h-1.5 rounded-full bg-amd-red animate-bounce" style="animation-delay:300ms"></div>
+                            </div>
+                            <span class="text-[10px] font-mono text-slate-600 ml-2">NPU inference active</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatArea.appendChild(div);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const el = document.getElementById('typing-indicator');
+            if (el) el.remove();
+        }
+
+        function addSystemLog(msg, type = 'INFO') {
+            const log = document.getElementById('system-log');
+            const colors = { INFO: 'text-cyber-cyan', OK: 'text-green-500', WARN: 'text-amd-orange', ERR: 'text-amd-red' };
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="${colors[type] || colors.INFO}">[${type}]</span> ${msg}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text || isGenerating) return;
+
+            isGenerating = true;
+            chatInput.value = '';
+            autoResize(chatInput);
+            updateTokenCount();
+
+            addMessage('user', text);
+            addSystemLog(`User query: "${text.substring(0, 50)}..."`, 'INFO');
+            addTypingIndicator();
+            addSystemLog('Routing to NPU inference pipeline...', 'INFO');
+
+            // Simulate processing
+            const delay = Math.random() * 1500 + 800;
+            setTimeout(() => {
+                addSystemLog('NPU inference complete', 'OK');
+                removeTypingIndicator();
+                
+                const type = classifyInput(text);
+                addMessage('assistant', responses[type], true);
+                
+                isGenerating = false;
+                chatInput.focus();
+            }, delay);
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+        }
+
+        function updateTokenCount() {
+            const count = chatInput.value.trim().split(/\s+/).filter(Boolean).length;
+            document.getElementById('token-count').textContent = count + ' tokens';
+        }
+
+        function useSuggestion(text) {
+            chatInput.value = text;
+            autoResize(chatInput);
+            updateTokenCount();
+            sendMessage();
+        }
+
+        function clearChat() {
+            chatArea.innerHTML = '';
+            showToast('Chat cleared', 'info');
+            addSystemLog('Chat session cleared', 'WARN');
+        }
+
+        function exportChat() {
+            showToast('Chat exported as JSON', 'success');
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function attachFile() {
+            showToast('File attachment ready — drag & drop or click to browse', 'info');
+        }
+
+        function useTool(tool) {
+            const names = { web_search: 'Web Search', code_interpreter: 'Code Interpreter', image_gen: 'Image Generation' };
+            showToast(`${names[tool]} tool activated`, 'success');
+            addSystemLog(`Tool activated: ${names[tool]}`, 'OK');
+            
+            // Update active tools UI
+            const tools = document.getElementById('active-tools');
+            const toolDiv = tools.children[tool === 'web_search' ? 1 : tool === 'code_interpreter' ? 2 : 3];
+            if (toolDiv) {
+                toolDiv.className = toolDiv.className.replace('border-white/5 bg-white/[0.02]', 'border-amd-red/20 bg-amd-red/5');
+                toolDiv.querySelector('.text-slate-400').className = 'text-[11px] font-medium';
+                toolDiv.querySelector('.text-slate-600').className = 'text-[9px] font-mono text-amd-red/70';
+                toolDiv.querySelector('.bg-slate-600').className = 'w-1.5 h-1.5 rounded-full bg-amd-red animate-pulse';
+            }
+        }
+
+        function copyCode(btn) {
+            const code = btn.closest('.relative').querySelector('code').textContent;
+            navigator.clipboard.writeText(code);
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 2000);
+        }
+
+        function copyResponse(btn) {
+            const text = btn.closest('.flex-1').querySelector('.corner-tl').textContent;
+            navigator.clipboard.writeText(text);
+            showToast('Response copied to clipboard', 'success');
+        }
+
+        // ===== TOAST SYSTEM =====
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                info: 'border-cyber-cyan/30 bg-cyber-cyan/10',
+                success: 'border-green-500/30 bg-green-500/10',
+                error: 'border-amd-red/30 bg-amd-red/10',
+                warn: 'border-amd-orange/30 bg-amd-orange/10'
+            };
+            const icons = {
+                info: 'mdi:information-outline',
+                success: 'mdi:check-circle-outline',
+                error: 'mdi:alert-circle-outline',
+                warn: 'mdi:alert-outline'
+            };
+            const iconColors = {
+                info: 'text-cyber-cyan',
+                success: 'text-green-500',
+                error: 'text-amd-red',
+                warn: 'text-amd-orange'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `toast-enter flex items-center gap-3 px-4 py-3 rounded-xl border ${colors[type]} backdrop-blur-lg max-w-sm`;
+            toast.style.background = type === 'info' ? 'rgba(0,240,255,0.08)' : type === 'success' ? 'rgba(34,197,94,0.08)' : type === 'error' ? 'rgba(237,28,36,0.08)' : 'rgba(255,107,0,0.08)';
+            toast.innerHTML = `
+                <span class="iconify ${iconColors[type]} text-lg" data-icon="${icons[type]}"></span>
+                <span class="text-sm text-slate-200">${message}</span>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.className = toast.className.replace('toast-enter', 'toast-exit');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ===== NAV SWITCH =====
+        function switchView(view) {
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = 'nav-btn px-4 py-2 text-sm font-medium text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-all';
+            });
+            document.getElementById('nav-' + view).className = 'nav-btn px-4 py-2 text-sm font-medium text-amd-red border-b-2 border-amd-red transition-all';
+            
+            if (view !== 'command') {
+                showToast(`${view.charAt(0).toUpperCase() + view.slice(1)} panel — coming soon`, 'warn');
+            }
+        }
+
+        // ===== INIT =====
+        chatInput.focus();
+    </script>
+</body>
+</html>
