@@ -1,7 +1,7 @@
 from time import perf_counter
 from fastapi import Request
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -23,30 +23,44 @@ from app.services.rag_service import RAGService
 from uuid import UUID
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
 @router.get("/sessions")
 async def get_sessions(
     user_id: UUID | None = None,
-    limit: int = 20,
-    db: Session = Depends(get_db)
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
 ):
     chat_repository = ChatRepository(db)
-    sessions = chat_repository.list_sessions(user_id=user_id, limit=limit)
+
+    sessions = chat_repository.list_sessions(
+        user_id=user_id, limit=limit, offset=offset
+    )
+
+    total = chat_repository.count_sessions(user_id=user_id)
+
     return {
-        "sessions": [
+        "data": [
             {
                 "id": s.id,
                 "title": s.title,
                 "created_at": s.created_at,
-                "updated_at": s.updated_at
-            } for s in sessions
-        ]
+                "updated_at": s.updated_at,
+            }
+            for s in sessions
+        ],
+        "pagination": {
+            "limit": limit,
+            "offset": offset,
+            "total": total,
+            "has_more": offset + limit < total,
+        },
     }
 
+
 @router.get("/sessions/{session_id}/messages")
-async def get_chat_history(
-    session_id: UUID,
-    db: Session = Depends(get_db)
-):
+async def get_chat_history(session_id: UUID, db: Session = Depends(get_db)):
     chat_repository = ChatRepository(db)
     session = chat_repository.get_session(session_id)
     if not session:
@@ -58,8 +72,8 @@ async def get_chat_history(
     return {"session_id": session_id, "messages": messages}
 
 
-
 from app.dependencies.limiter import limiter
+
 
 @router.post("", response_model=ChatResponse)
 @limiter.limit("20/minute")
@@ -93,8 +107,12 @@ async def create_chat_completion(
                 history=history[:-1],
             )
         except (AIProviderTimeoutError, AIProviderRequestError) as exc:
-            logging.warning(f"AI Provider failed: {exc}. Falling back gracefully to mock provider.")
-            fallback_settings = get_settings().model_copy(update={"ai_provider": "mock"})
+            logging.warning(
+                f"AI Provider failed: {exc}. Falling back gracefully to mock provider."
+            )
+            fallback_settings = get_settings().model_copy(
+                update={"ai_provider": "mock"}
+            )
             fallback_service = AIService(fallback_settings)
             fallback_result = await fallback_service.complete(
                 system_prompt=system_prompt,
@@ -104,7 +122,7 @@ async def create_chat_completion(
             ai_result = AIResult(
                 content=f"[Fallback] {fallback_result.content}",
                 model=f"fallback:{fallback_result.model}",
-                raw_response={"fallback_error": str(exc)}
+                raw_response={"fallback_error": str(exc)},
             )
 
         chat_repository.add_message(

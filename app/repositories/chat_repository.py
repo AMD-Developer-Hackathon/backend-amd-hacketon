@@ -13,7 +13,9 @@ class ChatRepository:
     def get_session(self, session_id: UUID) -> ChatSession | None:
         return self.db.get(ChatSession, session_id)
 
-    def create_session(self, user_id: UUID | None, title: str | None = None) -> ChatSession:
+    def create_session(
+        self, user_id: UUID | None, title: str | None = None
+    ) -> ChatSession:
         session = ChatSession(user_id=user_id, title=title)
         self.db.add(session)
         self.db.flush()
@@ -51,9 +53,25 @@ class ChatRepository:
         )
         return list(reversed(self.db.scalars(statement).all()))
 
-    def list_sessions(self, user_id: UUID | None = None, limit: int = 20) -> list[ChatSession]:
-        statement = select(ChatSession)
+    def list_sessions(
+        self, user_id: UUID | None = None, limit: int = 20, offset: int = 0
+    ):
+        query = self.db.query(ChatSession)
+
         if user_id:
-            statement = statement.where(ChatSession.user_id == user_id)
-        statement = statement.order_by(ChatSession.updated_at.desc()).limit(limit)
-        return list(self.db.scalars(statement).all())
+            query = query.filter(ChatSession.user_id == user_id)
+
+        return (
+            query.order_by(ChatSession.updated_at.desc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+    def count_sessions(self, user_id: UUID | None = None):
+        query = self.db.query(ChatSession)
+
+        if user_id:
+            query = query.filter(ChatSession.user_id == user_id)
+
+        return query.count()
