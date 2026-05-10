@@ -34,7 +34,17 @@ jobs:
           docker ps
 
       # 6. Health check API (lebih proper)
-      - name: Health Check API
+      - name: Wait for API
         run: |
-          sleep 10
-          curl -f http://localhost:8000/docs || exit 1
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/docs; then
+              echo "API is up!"
+              exit 0
+            fi
+            echo "Waiting for API..."
+            sleep 5
+          done
+
+          echo "API failed to start"
+          docker logs backend-amd-hacketon-api-1
+          exit 1

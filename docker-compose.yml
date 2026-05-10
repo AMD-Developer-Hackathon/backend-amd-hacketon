@@ -1,6 +1,7 @@
 services:
   api:
     build: .
+    container_name: backend-amd-hacketon-api-1
     ports:
       - "8000:8000"
     environment:
@@ -18,6 +19,7 @@ services:
 
   db:
     image: pgvector/pgvector:pg16
+    container_name: backend-amd-hacketon-db-1
     environment:
       - POSTGRES_DB=amd_smart_product_assistant
       - POSTGRES_USER=postgres
