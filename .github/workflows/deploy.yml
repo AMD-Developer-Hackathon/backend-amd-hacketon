@@ -13,22 +13,27 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Stop old container (jika ada)
+      # 2. Free disk BEFORE build (PENTING)
+      - name: Clean Docker system
+        run: |
+          docker system prune -a -f
+
+      # 3. Stop old container safely
       - name: Stop old container
         run: |
           docker compose down || true
 
-      # 3. Build & start container
+      # 4. Build & start fresh container
       - name: Build and Start Docker
         run: |
-          docker compose up -d --build
+          docker compose up -d --build --force-recreate
 
-      # 4. Check running container
+      # 5. Show running containers
       - name: Check containers
         run: |
           docker ps
 
-      # 5. Simple health check (optional tapi penting)
+      # 6. Health check API (lebih proper)
       - name: Health Check API
         run: |
           sleep 10

@@ -8,3 +8,8 @@ __pycache__/
 .idea/
 .vscode/
 alembic.ini.save
+*.pyo
+*.pyd
+.gitignore
+node_modules
+tests
