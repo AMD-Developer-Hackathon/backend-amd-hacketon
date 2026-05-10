@@ -6,11 +6,11 @@ services:
     environment:
       - APP_ENV=production
       - DEBUG=false
-      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/amd_smart_product_assistant
+      - DATABASE_URL
       - AI_PROVIDER=vllm
-      # - VLLM_BASE_URL=https://your-amd-cloud-vllm-url
-      # - VLLM_MODEL=your-model-name
-      # - ADMIN_API_KEY=your-secure-admin-key
+      - VLLM_BASE_URL
+      - VLLM_MODEL
+      - ADMIN_API_KEY
     depends_on:
       db:
         condition: service_healthy
