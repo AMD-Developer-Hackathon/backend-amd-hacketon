@@ -29,7 +29,10 @@ app.add_exception_handler(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://investmateai.cloud",
+        "https://www.investmateai.cloud",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
