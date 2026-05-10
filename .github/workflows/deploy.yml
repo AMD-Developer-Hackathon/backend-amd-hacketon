@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Deploy FastAPI to VPS
 
 on:
   push:
@@ -6,38 +6,30 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - name: Checkout code
+      # 1. Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Copy files to VPS via SSH
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${ secrets.VPS_HOST }
-          username: ${ secrets.VPS_USER }
-          key: ${ secrets.VPS_SSH_KEY }
-          source: "."
-          target: "~/apps/be_amd"
+      # 2. Stop old container (jika ada)
+      - name: Stop old container
+        run: |
+          docker compose down || true
 
-      - name: SSH deploy docker compose
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${ secrets.VPS_HOST }
-          username: ${ secrets.VPS_USER }
-          key: ${ secrets.VPS_SSH_KEY }
-          script: |
-            cd ~/apps/be_amd
+      # 3. Build & start container
+      - name: Build and Start Docker
+        run: |
+          docker compose up -d --build
 
-            echo "Stopping old containers..."
-            docker compose down
+      # 4. Check running container
+      - name: Check containers
+        run: |
+          docker ps
 
-            echo "Building new image..."
-            docker compose build
-
-            echo "Starting containers..."
-            docker compose up -d
-
-            echo "Cleanup..."
-            docker image prune -f
+      # 5. Simple health check (optional tapi penting)
+      - name: Health Check API
+        run: |
+          sleep 10
+          curl -f http://localhost:8000/docs || exit 1
