@@ -4,15 +4,8 @@ services:
     container_name: backend-amd-hacketon-api-1
     ports:
       - "8000:8000"
-    environment:
-      - APP_ENV=production
-      - DEBUG=false
-      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/amd_smart_product_assistant
-      - AI_PROVIDER=vllm
-      - VLLM_BASE_URL=http://165.245.138.77:8000
-      - VLLM_MODEL=meta-llama/Llama-3.2-3B-Instruct
-      - VLLM_API_KEY=47b8cf5c4af2ccde37b75be724c90dcf9847d11981614a9d43de12ff0928e4f5
-      - ADMIN_API_KEY=your-secure-admin-key
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
