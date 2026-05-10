@@ -45,6 +45,12 @@ class AIService:
             return self._mock_response(user_message)
         if provider == "vllm":
             return await self._vllm_response(system_prompt, user_message, history)
+        if provider == "groq":
+            return await self._groq_response(
+                system_prompt,
+                user_message,
+                history,
+            )
         raise AIProviderConfigError(f"Unsupported AI_PROVIDER: {self.settings.ai_provider}")
 
     def _mock_response(self, user_message: str) -> AIResult:
@@ -138,3 +144,91 @@ class AIService:
 
         model = payload.get("model") or self.settings.vllm_model
         return AIResult(content=content, model=model, raw_response=payload)
+
+    async def _groq_response(
+        self,
+        system_prompt: str,
+        user_message: str,
+        history: list[ChatMessage],
+    ) -> AIResult:
+        if not self.settings.groq_api_key:
+            raise AIProviderConfigError(
+                "GROQ_API_KEY is required when AI_PROVIDER=groq"
+            )
+
+        if not self.settings.groq_model:
+            raise AIProviderConfigError(
+                "GROQ_MODEL is required when AI_PROVIDER=groq"
+            )
+
+        messages = [{"role": "system", "content": system_prompt}]
+
+        messages.extend(
+            {"role": message.role, "content": message.content}
+            for message in history
+            if message.role in {"user", "assistant"}
+        )
+
+        messages.append(
+            {"role": "user", "content": user_message}
+        )
+
+        headers = {
+            "Authorization": f"Bearer {self.settings.groq_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            timeout = httpx.Timeout(
+                connect=10.0,
+                read=60.0,
+                write=10.0,
+                pool=10.0,
+            )
+
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers,
+                    json={
+                        "model": self.settings.groq_model,
+                        "messages": messages,
+                        "temperature": 0.3,
+                        "max_tokens": 800,
+                    },
+                )
+
+                response.raise_for_status()
+
+        except httpx.TimeoutException as exc:
+            raise AIProviderTimeoutError(
+                "Timed out while calling Groq provider"
+            ) from exc
+
+        except httpx.HTTPStatusError as exc:
+            raise AIProviderRequestError(
+                f"Groq provider returned HTTP {exc.response.status_code}"
+            ) from exc
+
+        except httpx.HTTPError as exc:
+            raise AIProviderRequestError(
+                "Unable to reach Groq provider"
+            ) from exc
+
+        payload = response.json()
+
+        try:
+            content = payload["choices"][0]["message"]["content"]
+
+        except (KeyError, IndexError, TypeError) as exc:
+            raise AIProviderRequestError(
+                "Groq provider returned an invalid response"
+            ) from exc
+
+        model = payload.get("model") or self.settings.groq_model
+
+        return AIResult(
+            content=content,
+            model=model,
+            raw_response=payload,
+        )
